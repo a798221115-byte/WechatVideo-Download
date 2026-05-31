@@ -1,9 +1,20 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, test } from 'node:test';
 import { createLocalServer } from '../src/main/local-server.js';
 import { createDownloadQueue } from '../src/main/download-queue.js';
+import { createDownloader } from '../src/main/downloader.js';
+
+async function waitForTask(queue, predicate) {
+  for (let attempt = 0; attempt < 80; attempt += 1) {
+    const task = queue.list()[0];
+    if (task && predicate(task)) return task;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  throw new Error('timed out waiting for task state');
+}
 
 describe('local server CORS', () => {
   test('answers browser preflight requests for injected page APIs', async () => {
@@ -148,6 +159,61 @@ describe('local server CORS', () => {
 
       assert.equal(response.status, 200);
       assert.equal(queue.list()[0].url, 'https://finder.video.qq.com/title-match.mp4');
+    } finally {
+      await server.stop();
+    }
+  });
+
+  test('downloads an enqueued video to local disk after shared media enrichment', async () => {
+    const queue = createDownloadQueue();
+    const downloadsDir = await fs.mkdtemp(path.join(os.tmpdir(), 'wx-helper-e2e-downloads-'));
+    const downloader = createDownloader({
+      queue,
+      paths: { downloadsDir },
+      appendRecord: async () => {},
+      concurrency: 1,
+      fetchImpl: async () => new globalThis.Response(Buffer.from('fake mp4 bytes'), { status: 200 })
+    });
+    const server = createLocalServer({
+      settings: { appPort: 0, proxyPort: 20251 },
+      paths: {
+        downloadsDir,
+        recordsFile: path.join(os.tmpdir(), 'wx-helper-test-records.jsonl')
+      },
+      queue,
+      downloader,
+      proxyService: { status: () => ({ running: false, port: 20251 }) },
+      appendRecord: async () => {}
+    });
+
+    const port = await server.start(0);
+    try {
+      await fetch(`http://127.0.0.1:${port}/__wx_helper/media`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          entries: [{
+            videoId: 'downloaded-video',
+            title: 'Downloaded title',
+            url: 'https://finder.video.qq.com/downloaded-video.mp4'
+          }]
+        })
+      });
+
+      const response = await fetch(`http://127.0.0.1:${port}/__wx_helper/downloads/enqueue`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          sourceTab: '赞和收藏',
+          videos: [{ videoId: 'downloaded-video', title: 'Downloaded title', author: 'Tester' }]
+        })
+      });
+
+      assert.equal(response.status, 200);
+      const doneTask = await waitForTask(queue, (task) => task.status === 'done' || task.status === 'failed');
+      assert.equal(doneTask.status, 'done');
+      assert.match(doneTask.localPath, /downloaded-video/);
+      assert.equal(await fs.readFile(doneTask.localPath, 'utf8'), 'fake mp4 bytes');
     } finally {
       await server.stop();
     }

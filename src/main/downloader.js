@@ -14,7 +14,7 @@ function decryptBuffer(buffer, decryptorArray) {
   return output;
 }
 
-export function createDownloader({ queue, paths, appendRecord, concurrency = 2 }) {
+export function createDownloader({ queue, paths, appendRecord, concurrency = 2, fetchImpl = fetch }) {
   let running = false;
   let active = 0;
 
@@ -24,7 +24,7 @@ export function createDownloader({ queue, paths, appendRecord, concurrency = 2 }
     }
 
     queue.markRunning(task.id);
-    const response = await fetch(task.url, {
+    const response = await fetchImpl(task.url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 wx-channel-local-helper'
       }

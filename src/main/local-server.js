@@ -252,7 +252,7 @@ export function createLocalServer({ settings, paths, queue, downloader, proxySer
       const tasks = queue.enqueueMany(items);
       await appendRecord({ type: 'downloads_enqueued', count: tasks.length, sourceTab: body.sourceTab || '' });
       downloader.start();
-      sendJson(response, 200, { ok: true, tasks: queue.list() });
+      sendJson(response, 200, { ok: true, addedCount: items.length, tasks: queue.list() });
       return;
     }
 

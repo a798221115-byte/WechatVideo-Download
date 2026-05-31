@@ -560,22 +560,19 @@
         setMessage('请先选择视频');
         return;
       }
-      const downloadable = videos.filter((video) => video.url && isAllowedMediaUrl(video.url));
-      if (!downloadable.length) {
-        setMessage(`没匹配到这个卡片的视频地址。已扫描 ${state.mediaEntries.length} 个地址。请点开这张卡片播放几秒，等画面开始播放后再回列表点击“加入下载”；如果左右两个页面都开着，可以在播放页也点一次“扫描”。`);
-        return;
-      }
       setMessage('正在加入...');
       try {
         const response = await fetch(`${state.appBase}/__wx_helper/downloads/enqueue`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sourceTab: currentSourceTab(), videos: downloadable })
+          body: JSON.stringify({ sourceTab: currentSourceTab(), videos })
         });
         if (response.ok) {
-          setMessage(`已加入 ${downloadable.length} 个`);
+          const result = await response.json().catch(() => ({}));
+          setMessage(`已加入 ${result.addedCount || videos.length} 个，正在下载`);
         } else {
-          setMessage(`加入失败 ${response.status}`);
+          const result = await response.json().catch(() => ({}));
+          setMessage(result.error || `加入失败 ${response.status}`);
         }
       } catch (error) {
         setMessage(`加入失败：${error.message || '网络错误'}`);
