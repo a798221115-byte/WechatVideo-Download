@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>视频号下载助手</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <h1>视频号下载助手</h1>
+          <p>本地队列、下载进度和历史记录</p>
+        </div>
+        <div class="actions">
+          <button id="proxy">启动代理</button>
+          <button id="refresh">刷新</button>
+        </div>
+      </header>
+      <section class="notice" id="proxyNotice">代理状态检查中...</section>
+      <section class="stats">
+        <div><strong id="queued">0</strong><span>等待</span></div>
+        <div><strong id="running">0</strong><span>下载中</span></div>
+        <div><strong id="done">0</strong><span>完成</span></div>
+        <div><strong id="failed">0</strong><span>失败</span></div>
+      </section>
+      <section class="panel">
+        <h2>下载队列</h2>
+        <div id="tasks" class="tasks"></div>
+      </section>
+    </main>
+    <script src="/console.js" type="module"></script>
+  </body>
+</html>
