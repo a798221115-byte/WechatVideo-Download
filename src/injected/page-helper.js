@@ -32,7 +32,7 @@
       .wxh-card-mark { position: absolute; top: 8px; right: 8px; z-index: 2147483646; width: 30px; height: 30px; border-radius: 50%; border: 1px solid rgba(255,255,255,.72); background: rgba(20,20,20,.82); display: grid; place-items: center; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,.3); }
       .wxh-card-mark input { width: 18px; height: 18px; accent-color: #07c160; cursor: pointer; }
       .wxh-card-selected { outline: 2px solid #07c160 !important; outline-offset: 2px; }
-      .wxh-toolbar { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 2147483647; width: min(760px, calc(100vw - 32px)); box-sizing: border-box; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid rgba(255,255,255,.16); border-radius: 8px; color: #f2f2f2; background: rgba(24,24,24,.96); box-shadow: 0 12px 32px rgba(0,0,0,.4); font: 14px/1.4 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .wxh-toolbar { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 2147483647; width: min(900px, calc(100vw - 32px)); box-sizing: border-box; display: grid; grid-template-columns: auto auto minmax(220px, 1fr); align-items: start; gap: 8px; padding: 10px 12px; border: 1px solid rgba(255,255,255,.16); border-radius: 8px; color: #f2f2f2; background: rgba(24,24,24,.96); box-shadow: 0 12px 32px rgba(0,0,0,.4); font: 14px/1.4 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
       .wxh-toolbar.wxh-collapsed { width: auto; min-width: 150px; grid-template-columns: auto auto; cursor: grab; }
       .wxh-toolbar.wxh-collapsed .wxh-controls, .wxh-toolbar.wxh-collapsed .wxh-message { display: none; }
       .wxh-toolbar:not(.wxh-collapsed) .wxh-expand { display: none; }
@@ -43,8 +43,8 @@
       .wxh-toolbar-drag { cursor: grab; user-select: none; color: #9f9f9f; padding: 0 2px; }
       .wxh-toolbar-drag:active { cursor: grabbing; }
       .wxh-status { min-width: 58px; font-weight: 700; white-space: nowrap; }
-      .wxh-message { min-width: 180px; max-width: 440px; color: #bff4d5; overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; line-height: 1.45; }
-      .wxh-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+      .wxh-message { min-width: 0; color: #bff4d5; overflow: visible; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.45; }
+      .wxh-controls { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
       .wxh-toggle { min-width: 52px; padding: 0 8px !important; }
     `;
     document.documentElement.appendChild(style);

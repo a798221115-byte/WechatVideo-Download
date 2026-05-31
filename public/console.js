@@ -1,8 +1,10 @@
 const tasksNode = document.querySelector('#tasks');
 const refreshButton = document.querySelector('#refresh');
 const proxyButton = document.querySelector('#proxy');
+const selfTestButton = document.querySelector('#selfTest');
 const proxyNotice = document.querySelector('#proxyNotice');
 const mediaNotice = document.querySelector('#mediaNotice');
+const selfTestNotice = document.querySelector('#selfTestNotice');
 
 function statusText(status) {
   return {
@@ -105,6 +107,26 @@ proxyButton.addEventListener('click', async () => {
     await fetch(status.running ? '/api/proxy/stop' : '/api/proxy/start', { method: 'POST' });
   } finally {
     proxyButton.disabled = false;
+    await load();
+  }
+});
+selfTestButton.addEventListener('click', async () => {
+  selfTestButton.disabled = true;
+  selfTestNotice.classList.remove('ok', 'error');
+  selfTestNotice.textContent = '正在自检：会通过下载队列写入一个很小的本地测试文件...';
+  try {
+    const response = await fetch('/api/self-test/download', { method: 'POST' });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload.ok) {
+      throw new Error(payload.task?.error || payload.error || `自检失败 ${response.status}`);
+    }
+    selfTestNotice.classList.add('ok');
+    selfTestNotice.textContent = `自检通过：已写入本地测试文件 ${payload.task.localPath}`;
+  } catch (error) {
+    selfTestNotice.classList.add('error');
+    selfTestNotice.textContent = `自检失败：${error.message || '未知错误'}`;
+  } finally {
+    selfTestButton.disabled = false;
     await load();
   }
 });

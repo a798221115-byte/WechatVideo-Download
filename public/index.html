@@ -14,12 +14,14 @@
           <p>本地队列、下载进度和历史记录</p>
         </div>
         <div class="actions">
+          <button id="selfTest">下载链路自检</button>
           <button id="proxy">启动代理</button>
           <button id="refresh">刷新</button>
         </div>
       </header>
       <section class="notice" id="proxyNotice">代理状态检查中...</section>
       <section class="notice muted" id="mediaNotice">视频地址捕获状态检查中...</section>
+      <section class="notice muted" id="selfTestNotice">可以点击“下载链路自检”，确认本机写入下载文件的流程是否正常。</section>
       <section class="stats">
         <div><strong id="queued">0</strong><span>等待</span></div>
         <div><strong id="running">0</strong><span>下载中</span></div>

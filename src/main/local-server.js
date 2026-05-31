@@ -50,6 +50,33 @@ function sendOptions(response) {
   response.end();
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForPublicTask(queue, id, timeoutMs = 5000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const task = queue.list().find((item) => item.id === id);
+    if (task && ['done', 'failed', 'cancelled'].includes(task.status)) return task;
+    await sleep(50);
+  }
+  return queue.list().find((item) => item.id === id) || null;
+}
+
+function missingMediaMessage(mediaStore) {
+  const summary = mediaStore.summary();
+  const latestText = summary.latestCapturedAt
+    ? `最近一次捕获：${new Date(summary.latestCapturedAt).toLocaleTimeString('zh-CN', { hour12: false })}，${summary.latestHost || '未知域名'}。`
+    : '最近一次捕获：暂无。';
+  return [
+    '没有匹配到这个卡片的视频地址。',
+    `当前本机已捕获 ${summary.count || 0} 个视频地址。${latestText}`,
+    '请先打开这个视频并等待播放 2 秒，再回到赞和收藏页面点击“扫描”或“加入下载”。',
+    '如果捕获数量一直是 0，通常是微信的视频请求没有经过本助手代理；常见原因是 VPN/TUN 接管网络、视频号页面没有重新打开，或当前视频请求域名还没有被识别。'
+  ].join('\n');
+}
+
 async function readJsonBody(request) {
   const chunks = [];
   let size = 0;
@@ -145,6 +172,23 @@ export function createLocalServer({ settings, paths, queue, downloader, proxySer
       return;
     }
 
+    if (request.method === 'POST' && url.pathname === '/api/self-test/download') {
+      const task = queue.enqueue({
+        videoId: `self-test-${Date.now()}`,
+        title: '下载链路自检',
+        author: 'self-test',
+        sourceTab: '自检',
+        url: 'https://finder.video.qq.com/self-test.mp4',
+        capturedAt: new Date().toISOString(),
+        selfTestBody: 'wx-channel-helper self-test mp4 bytes\n'
+      });
+      downloader.start();
+      const result = await waitForPublicTask(queue, task.id);
+      if (!result) throw new Error('self-test timed out');
+      sendJson(response, result.status === 'done' ? 200 : 500, { ok: result.status === 'done', task: result });
+      return;
+    }
+
     const retryMatch = url.pathname.match(/^\/api\/downloads\/([^/]+)\/retry$/);
     if (request.method === 'POST' && retryMatch) {
       const task = queue.retry(retryMatch[1]);
@@ -204,7 +248,7 @@ export function createLocalServer({ settings, paths, queue, downloader, proxySer
       }, { allowRecentFallback })).filter((item) => item.url && isAllowedUrl(item.url));
       if (!items.length) {
         await appendRecord({ type: 'downloads_enqueue_rejected', reason: 'missing_media_url', sourceTab: body.sourceTab || '' });
-        sendJson(response, 422, { ok: false, error: '未找到可下载的视频地址，请先点开播放一次或点击页面工具条的“扫描”。' });
+        sendJson(response, 422, { ok: false, error: missingMediaMessage(mediaStore) });
         return;
       }
       const tasks = queue.enqueueMany(items);

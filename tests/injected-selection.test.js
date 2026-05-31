@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { describe, test } from 'node:test';
 import { toggleId, selectAllVisible, invertVisible } from '../src/injected/selection-state.js';
 
@@ -16,5 +17,12 @@ describe('injected page selection state', () => {
     selectAllVisible(selected, ['a', 'b']);
     invertVisible(selected, ['b', 'c']);
     assert.deepEqual([...selected].sort(), ['a', 'c', 'old']);
+  });
+
+  test('toolbar messages preserve full multiline text', () => {
+    const helperSource = fs.readFileSync('src/injected/page-helper.js', 'utf8');
+
+    assert.match(helperSource, /\.wxh-message[\s\S]*white-space: pre-wrap/);
+    assert.doesNotMatch(helperSource, /\.wxh-message[\s\S]*text-overflow: ellipsis/);
   });
 });

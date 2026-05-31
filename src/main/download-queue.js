@@ -19,6 +19,7 @@ function createTask(candidate) {
     durationText: candidate.durationText || '',
     decryptKey: candidate.decryptKey || '',
     decryptorArray: candidate.decryptorArray || null,
+    selfTestBody: candidate.selfTestBody || '',
     localPath: '',
     status: 'queued',
     progress: 0,
@@ -63,7 +64,7 @@ export function createDownloadQueue(initialTasks = []) {
       return candidates.map((candidate) => this.enqueue(candidate));
     },
     list() {
-      return tasks.map((task) => ({ ...task, decryptorArray: undefined }));
+      return tasks.map((task) => ({ ...task, decryptorArray: undefined, selfTestBody: undefined }));
     },
     get,
     markRunning(id) {

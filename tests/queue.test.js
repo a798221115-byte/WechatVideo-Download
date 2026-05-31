@@ -44,4 +44,21 @@ describe('download queue', () => {
     assert.equal(retried.error, '');
     assert.equal(retried.attempts, 1);
   });
+
+  test('keeps self-test payload out of public task lists', () => {
+    const queue = createDownloadQueue();
+    queue.enqueue({
+      videoId: 'self-test',
+      title: 'Download self-test',
+      author: 'Self test',
+      sourceTab: 'self-test',
+      url: 'https://finder.video.qq.com/self-test.mp4',
+      selfTestBody: 'private test payload'
+    });
+
+    const [task] = queue.list();
+
+    assert.equal(task.selfTestBody, undefined);
+    assert.equal(task.url, 'https://finder.video.qq.com/self-test.mp4');
+  });
 });

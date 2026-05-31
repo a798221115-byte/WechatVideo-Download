@@ -74,6 +74,11 @@ button.primary {
   color: #bff4d5;
 }
 
+.notice.error {
+  border-color: #e55353;
+  color: #ffd0d0;
+}
+
 .notice.muted {
   margin-top: 10px;
   color: #b8b8b8;
@@ -131,6 +136,8 @@ button.primary {
 
 .task small {
   color: #adadad;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .status {

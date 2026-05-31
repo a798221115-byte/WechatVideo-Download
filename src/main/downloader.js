@@ -24,18 +24,25 @@ export function createDownloader({ queue, paths, appendRecord, concurrency = 2, 
     }
 
     queue.markRunning(task.id);
-    const response = await fetchImpl(task.url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 wx-channel-local-helper'
-      }
-    });
+    let buffer;
+    if (task.selfTestBody) {
+      buffer = Buffer.from(task.selfTestBody, 'utf8');
+    } else {
+      const response = await fetchImpl(task.url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 wx-channel-local-helper'
+        }
+      });
 
-    if (!response.ok) {
-      throw new Error(`download HTTP ${response.status}`);
+      if (!response.ok) {
+        throw new Error(`download HTTP ${response.status}`);
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      buffer = Buffer.from(arrayBuffer);
     }
 
-    const arrayBuffer = await response.arrayBuffer();
-    const decrypted = decryptBuffer(Buffer.from(arrayBuffer), task.decryptorArray);
+    const decrypted = decryptBuffer(buffer, task.decryptorArray);
     const relativePath = buildDownloadRelativePath(task);
     const fullPath = path.join(paths.downloadsDir, relativePath);
     await fs.mkdir(path.dirname(fullPath), { recursive: true });
