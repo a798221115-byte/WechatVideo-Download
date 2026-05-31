@@ -356,8 +356,13 @@
       }
     }
 
+    function isInteractiveToolbarTarget(target) {
+      return Boolean(target?.closest?.('button,input,select,textarea,a,label'));
+    }
+
     function onToolbarPointerDown(event) {
       const toolbar = ensureToolbar();
+      if (isInteractiveToolbarTarget(event.target)) return;
       if (!state.collapsed && event.target?.dataset?.role !== 'drag') return;
       const rect = toolbar.getBoundingClientRect();
       state.dragState = {
