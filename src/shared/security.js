@@ -8,6 +8,7 @@ const EXACT_ALLOWED_HOSTS = new Set([
 
 const ALLOWED_SUFFIXES = [
   '.video.qq.com',
+  '.tc.qq.com',
   '.weixin.qq.com',
   '.wx.qq.com'
 ];

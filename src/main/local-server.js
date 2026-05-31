@@ -140,6 +140,11 @@ export function createLocalServer({ settings, paths, queue, downloader, proxySer
       return;
     }
 
+    if (request.method === 'GET' && url.pathname === '/api/media') {
+      sendJson(response, 200, mediaStore.summary());
+      return;
+    }
+
     const retryMatch = url.pathname.match(/^\/api\/downloads\/([^/]+)\/retry$/);
     if (request.method === 'POST' && retryMatch) {
       const task = queue.retry(retryMatch[1]);

@@ -2,6 +2,7 @@ const tasksNode = document.querySelector('#tasks');
 const refreshButton = document.querySelector('#refresh');
 const proxyButton = document.querySelector('#proxy');
 const proxyNotice = document.querySelector('#proxyNotice');
+const mediaNotice = document.querySelector('#mediaNotice');
 
 function statusText(status) {
   return {
@@ -31,6 +32,15 @@ async function loadProxyStatus() {
     ? `代理已启动：127.0.0.1:${status.port}。请重新打开或刷新微信视频号页面。`
     : '代理未启动。点击“启动代理”后，再重新打开微信视频号“赞和收藏”页面。';
   return status;
+}
+
+async function loadMediaStatus() {
+  const response = await fetch('/api/media');
+  const status = await response.json();
+  const latest = status.latestCapturedAt
+    ? new Date(status.latestCapturedAt).toLocaleTimeString()
+    : '暂无';
+  mediaNotice.textContent = `已捕获 ${status.count || 0} 个视频地址；最近捕获：${latest}${status.latestHost ? `，${status.latestHost}` : ''}`;
 }
 
 function render(tasks) {
@@ -75,6 +85,7 @@ async function load() {
   const data = await response.json();
   render(data.tasks || []);
   await loadProxyStatus();
+  await loadMediaStatus();
 }
 
 tasksNode.addEventListener('click', async (event) => {

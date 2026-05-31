@@ -64,6 +64,16 @@ export function createMediaStore({ maxAgeMs = 15 * 60 * 1000, maxEntries = 800 }
     list() {
       prune();
       return entries.map((entry) => ({ ...entry }));
+    },
+    summary() {
+      prune();
+      const latest = entries[0];
+      return {
+        count: entries.length,
+        latestCapturedAt: latest?.capturedAt || 0,
+        latestHost: latest?.url ? new URL(latest.url).hostname : '',
+        latestPath: latest?.url ? new URL(latest.url).pathname : ''
+      };
     }
   };
 }

@@ -119,6 +119,7 @@ export function tlsInterceptTargets() {
     { hostname: 'finder.video.qq.com' },
     { hostname: 'finder.video.weixin.qq.com' },
     { hostname: '*.video.qq.com' },
+    { hostname: '*.tc.qq.com' },
     { hostname: '*.weixin.qq.com' },
     { hostname: '*.wx.qq.com' }
   ];
@@ -134,6 +135,7 @@ export function isLikelyMediaRequestUrl(value) {
       host === 'finder.video.qq.com' ||
       host === 'finder.video.weixin.qq.com' ||
       host.endsWith('.video.qq.com') ||
+      host.endsWith('.tc.qq.com') ||
       host.endsWith('.weixin.qq.com') ||
       host.endsWith('.wx.qq.com')
     )) {

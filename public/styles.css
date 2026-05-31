@@ -74,6 +74,11 @@ button.primary {
   color: #bff4d5;
 }
 
+.notice.muted {
+  margin-top: 10px;
+  color: #b8b8b8;
+}
+
 .stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

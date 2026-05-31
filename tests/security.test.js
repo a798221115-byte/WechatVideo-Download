@@ -7,6 +7,7 @@ describe('security whitelist', () => {
     assert.equal(isAllowedHost('channels.weixin.qq.com'), true);
     assert.equal(isAllowedHost('res.wx.qq.com'), true);
     assert.equal(isAllowedHost('finder.video.qq.com'), true);
+    assert.equal(isAllowedHost('vweixinf.tc.qq.com'), true);
   });
 
   test('rejects unrelated hosts', () => {

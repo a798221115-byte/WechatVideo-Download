@@ -65,6 +65,7 @@ describe('proxy request detection', () => {
         { hostname: 'finder.video.qq.com' },
         { hostname: 'finder.video.weixin.qq.com' },
         { hostname: '*.video.qq.com' },
+        { hostname: '*.tc.qq.com' },
         { hostname: '*.weixin.qq.com' },
         { hostname: '*.wx.qq.com' }
       ]
@@ -75,8 +76,8 @@ describe('proxy request detection', () => {
     assert.equal(isLikelyMediaRequestUrl('https://finder.video.qq.com/video.mp4?token=abc'), true);
     assert.equal(isLikelyMediaRequestUrl('https://v6-finder.video.qq.com/video/foo?token=abc'), true);
     assert.equal(isLikelyMediaRequestUrl('https://finder.video.weixin.qq.com/video/foo?token=abc'), true);
+    assert.equal(isLikelyMediaRequestUrl('https://vweixinf.tc.qq.com/video/foo?token=abc'), true);
     assert.equal(isLikelyMediaRequestUrl('https://weixin110.qq.com/security/readtemplate?t=weixin_report/w_type&scene=33'), false);
-    assert.equal(isLikelyMediaRequestUrl('https://vweixinf.tc.qq.com/video/foo?token=abc'), false);
     assert.equal(isLikelyMediaRequestUrl('https://channels.weixin.qq.com/web/pages/feed'), false);
     assert.equal(isLikelyMediaRequestUrl('https://example.com/video.mp4'), false);
   });
