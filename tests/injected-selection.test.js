@@ -25,4 +25,10 @@ describe('injected page selection state', () => {
     assert.match(helperSource, /\.wxh-message[\s\S]*white-space: pre-wrap/);
     assert.doesNotMatch(helperSource, /\.wxh-message[\s\S]*text-overflow: ellipsis/);
   });
+
+  test('page-side media scanner accepts Tencent tc CDN URLs', () => {
+    const helperSource = fs.readFileSync('src/injected/page-helper.js', 'utf8');
+
+    assert.match(helperSource, /host\.endsWith\('\.tc\.qq\.com'\)/);
+  });
 });

@@ -67,6 +67,7 @@
           (host === 'finder.video.qq.com' ||
             host === 'finder.video.weixin.qq.com' ||
             host.endsWith('.video.qq.com') ||
+            host.endsWith('.tc.qq.com') ||
             host.endsWith('.weixin.qq.com') ||
             host.endsWith('.wx.qq.com')) &&
           (path.includes('.mp4') || path.includes('/video/') || path.includes('videoplayback') || parsed.search)
@@ -103,10 +104,20 @@
     }
 
     function scanTextForMedia(text) {
-      const matches = String(text || '').match(/https?:\\?\/\\?\/[^"'\s<>]+/g) || [];
+      const source = String(text || '');
+      const matches = source.match(/https?:\\?\/\\?\/[^"'\s<>]+/g) || [];
       for (const raw of matches) {
         const url = raw.replaceAll('\\/', '/').replace(/[),.;\]]+$/, '');
         if (isAllowedMediaUrl(url)) rememberMediaEntry({ url });
+      }
+      const encodedMatches = source.match(/https?%3A%2F%2F[^"'\s<>]+/gi) || [];
+      for (const raw of encodedMatches) {
+        try {
+          const url = decodeURIComponent(raw).replace(/[),.;\]]+$/, '');
+          if (isAllowedMediaUrl(url)) rememberMediaEntry({ url });
+        } catch {
+          // Ignore malformed percent-encoded fragments.
+        }
       }
     }
 

@@ -79,10 +79,24 @@ function removeBlockingHeaders(headers) {
 
 export function scanTextForMediaUrls(text) {
   const urls = [];
+  const seen = new Set();
+  function addCandidate(raw) {
+    const url = raw.replaceAll('\\/', '/').replace(/[),.;\]]+$/, '');
+    if (!isLikelyMediaRequestUrl(url) || seen.has(url)) return;
+    seen.add(url);
+    urls.push(url);
+  }
   const matches = String(text || '').match(/https?:\\?\/\\?\/[^"'\s<>]+/g) || [];
   for (const raw of matches) {
-    const url = raw.replaceAll('\\/', '/').replace(/[),.;\]]+$/, '');
-    if (isLikelyMediaRequestUrl(url)) urls.push(url);
+    addCandidate(raw);
+  }
+  const encodedMatches = String(text || '').match(/https?%3A%2F%2F[^"'\s<>]+/gi) || [];
+  for (const raw of encodedMatches) {
+    try {
+      addCandidate(decodeURIComponent(raw));
+    } catch {
+      // Ignore malformed percent-encoded fragments.
+    }
   }
   return urls;
 }

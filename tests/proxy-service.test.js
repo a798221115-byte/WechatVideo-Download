@@ -89,6 +89,13 @@ describe('proxy request detection', () => {
     );
   });
 
+  test('extracts percent-encoded media URLs from Channels response text', () => {
+    assert.deepEqual(
+      scanTextForMediaUrls('media=https%3A%2F%2Fvweixinf.tc.qq.com%2Fvideo%2Fencoded.mp4%3Ftoken%3Dabc'),
+      ['https://vweixinf.tc.qq.com/video/encoded.mp4?token=abc']
+    );
+  });
+
   test('scans media URLs from non-GET Channels API responses without injecting UI', async () => {
     const remembered = [];
     const records = [];
