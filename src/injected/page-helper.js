@@ -43,7 +43,7 @@
       .wxh-toolbar-drag { cursor: grab; user-select: none; color: #9f9f9f; padding: 0 2px; }
       .wxh-toolbar-drag:active { cursor: grabbing; }
       .wxh-status { min-width: 58px; font-weight: 700; white-space: nowrap; }
-      .wxh-message { min-width: 0; color: #bff4d5; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .wxh-message { min-width: 180px; max-width: 440px; color: #bff4d5; overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; line-height: 1.45; }
       .wxh-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
       .wxh-toggle { min-width: 52px; padding: 0 8px !important; }
     `;
@@ -89,15 +89,17 @@
       if (!entry?.url || !isAllowedMediaUrl(entry.url)) return;
       const key = normalizeUrlKey(entry.url);
       if (state.mediaEntries.some((item) => normalizeUrlKey(item.url) === key)) return;
-      state.mediaEntries.unshift({
+      const mediaEntry = {
         url: entry.url,
         coverUrl: entry.coverUrl || '',
         title: entry.title || '',
         objectId: entry.objectId || '',
         videoId: entry.videoId || '',
         capturedAt: Date.now()
-      });
+      };
+      state.mediaEntries.unshift(mediaEntry);
       state.mediaEntries = state.mediaEntries.slice(0, 300);
+      void postMediaEntries([mediaEntry]);
     }
 
     function scanTextForMedia(text) {
@@ -138,6 +140,14 @@
     function scanRuntimeForMedia() {
       for (const video of document.querySelectorAll('video')) {
         rememberMediaEntry({ ...currentPendingCandidate(), url: video.currentSrc || video.src || '' });
+      }
+      try {
+        const pending = currentPendingCandidate();
+        for (const entry of window.performance.getEntriesByType('resource').slice(-300)) {
+          rememberMediaEntry({ ...pending, url: entry.name || '' });
+        }
+      } catch {
+        // Some embedded browsers may restrict performance entries.
       }
       for (const key of ['__INITIAL_STATE__', '__NEXT_DATA__', '__NUXT__']) {
         try {
@@ -464,6 +474,18 @@
       }
     }
 
+    async function postMediaEntries(entries) {
+      try {
+        await fetch(`${state.appBase}/__wx_helper/media`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sourceTab: currentSourceTab(), entries })
+        });
+      } catch {
+        // Media sharing is best-effort; local selection should still work.
+      }
+    }
+
     function visibleCandidates() {
       decorateCards();
       return Array.from(document.querySelectorAll('[data-wxh-card="1"]')).map((card) => ({
@@ -540,7 +562,7 @@
       }
       const downloadable = videos.filter((video) => video.url && isAllowedMediaUrl(video.url));
       if (!downloadable.length) {
-        setMessage('没匹配到这个卡片的视频地址。请点开这张卡片播放几秒，再回列表下载。');
+        setMessage(`没匹配到这个卡片的视频地址。已扫描 ${state.mediaEntries.length} 个地址。请点开这张卡片播放几秒，等画面开始播放后再回列表点击“加入下载”；如果左右两个页面都开着，可以在播放页也点一次“扫描”。`);
         return;
       }
       setMessage('正在加入...');

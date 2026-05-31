@@ -20,6 +20,25 @@ function toArray(value) {
   return Array.isArray(value) ? value : [];
 }
 
+function normalizeUrlKey(value) {
+  try {
+    const parsed = new URL(value);
+    return `${parsed.hostname}${parsed.pathname}`.toLowerCase();
+  } catch {
+    return String(value || '').split('?')[0].toLowerCase();
+  }
+}
+
+function normalizeText(value) {
+  return String(value || '').trim().replace(/\s+/g, ' ');
+}
+
+function textMatches(left, right) {
+  const a = normalizeText(left);
+  const b = normalizeText(right);
+  return Boolean(a && b && (a.includes(b) || b.includes(a)));
+}
+
 function corsHeaders() {
   return {
     'access-control-allow-origin': '*',
@@ -87,6 +106,37 @@ async function tryStatic(requestPath, response) {
 export function createLocalServer({ settings, paths, queue, downloader, proxyService, appendRecord, openPath }) {
   let server = null;
   const candidates = new Map();
+  let mediaEntries = [];
+
+  function rememberMediaEntry(entry) {
+    if (!entry?.url || !isAllowedUrl(entry.url)) return false;
+    const key = normalizeUrlKey(entry.url);
+    if (mediaEntries.some((item) => normalizeUrlKey(item.url) === key)) return false;
+    mediaEntries.unshift({
+      videoId: entry.videoId || '',
+      title: entry.title || '',
+      coverUrl: entry.coverUrl || '',
+      objectId: entry.objectId || '',
+      url: entry.url,
+      capturedAt: Date.now()
+    });
+    const cutoff = Date.now() - 15 * 60 * 1000;
+    mediaEntries = mediaEntries.filter((item) => Number(item.capturedAt || 0) >= cutoff).slice(0, 500);
+    return true;
+  }
+
+  function enrichWithSharedMedia(item) {
+    if (item.url && isAllowedUrl(item.url)) return item;
+    const coverKey = normalizeUrlKey(item.coverUrl);
+    const matched = mediaEntries.find((entry) => {
+      if (item.videoId && entry.videoId && item.videoId === entry.videoId) return true;
+      if (item.objectId && entry.objectId && item.objectId === entry.objectId) return true;
+      if (coverKey && normalizeUrlKey(entry.coverUrl) === coverKey) return true;
+      if (textMatches(item.title, entry.title)) return true;
+      return false;
+    });
+    return matched?.url ? { ...item, url: matched.url } : item;
+  }
 
   async function route(request, response) {
     const url = new URL(request.url, `http://${request.headers.host || '127.0.0.1'}`);
@@ -179,9 +229,17 @@ export function createLocalServer({ settings, paths, queue, downloader, proxySer
       return;
     }
 
+    if (request.method === 'POST' && url.pathname === '/__wx_helper/media') {
+      const body = await readJsonBody(request);
+      const accepted = toArray(body.entries).filter(rememberMediaEntry).length;
+      await appendRecord({ type: 'media_seen', count: accepted, sourceTab: body.sourceTab || '' });
+      sendJson(response, 200, { ok: true, count: accepted });
+      return;
+    }
+
     if (request.method === 'POST' && url.pathname === '/__wx_helper/downloads/enqueue') {
       const body = await readJsonBody(request);
-      const items = toArray(body.videos).map((item) => ({
+      const items = toArray(body.videos).map((item) => enrichWithSharedMedia({
         ...candidates.get(item.videoId),
         ...item,
         capturedAt: item.capturedAt || new Date().toISOString()

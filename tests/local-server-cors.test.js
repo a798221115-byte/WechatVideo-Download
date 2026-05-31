@@ -69,6 +69,90 @@ describe('local server CORS', () => {
     }
   });
 
+  test('enriches enqueue requests from shared media captured by another page', async () => {
+    const queue = createDownloadQueue();
+    const server = createLocalServer({
+      settings: { appPort: 0, proxyPort: 20251 },
+      paths: {
+        downloadsDir: path.join(os.tmpdir(), 'wx-helper-test-downloads'),
+        recordsFile: path.join(os.tmpdir(), 'wx-helper-test-records.jsonl')
+      },
+      queue,
+      downloader: { start() {}, nudge() {} },
+      proxyService: { status: () => ({ running: false, port: 20251 }) },
+      appendRecord: async () => {}
+    });
+
+    const port = await server.start(0);
+    try {
+      const mediaResponse = await fetch(`http://127.0.0.1:${port}/__wx_helper/media`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          entries: [{
+            videoId: 'shared-video',
+            title: 'Shared title',
+            url: 'https://finder.video.qq.com/shared-video.mp4?token=abc'
+          }]
+        })
+      });
+      assert.equal(mediaResponse.status, 200);
+
+      const enqueueResponse = await fetch(`http://127.0.0.1:${port}/__wx_helper/downloads/enqueue`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ videos: [{ videoId: 'shared-video', title: 'Shared title' }] })
+      });
+
+      assert.equal(enqueueResponse.status, 200);
+      assert.equal(queue.list().length, 1);
+      assert.equal(queue.list()[0].url, 'https://finder.video.qq.com/shared-video.mp4?token=abc');
+    } finally {
+      await server.stop();
+    }
+  });
+
+  test('matches shared media by title when ids differ across page contexts', async () => {
+    const queue = createDownloadQueue();
+    const server = createLocalServer({
+      settings: { appPort: 0, proxyPort: 20251 },
+      paths: {
+        downloadsDir: path.join(os.tmpdir(), 'wx-helper-test-downloads'),
+        recordsFile: path.join(os.tmpdir(), 'wx-helper-test-records.jsonl')
+      },
+      queue,
+      downloader: { start() {}, nudge() {} },
+      proxyService: { status: () => ({ running: false, port: 20251 }) },
+      appendRecord: async () => {}
+    });
+
+    const port = await server.start(0);
+    try {
+      await fetch(`http://127.0.0.1:${port}/__wx_helper/media`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          entries: [{
+            videoId: 'detail-id',
+            title: '同一个视频标题',
+            url: 'https://finder.video.qq.com/title-match.mp4'
+          }]
+        })
+      });
+
+      const response = await fetch(`http://127.0.0.1:${port}/__wx_helper/downloads/enqueue`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ videos: [{ videoId: 'list-id', title: '同一个视频标题' }] })
+      });
+
+      assert.equal(response.status, 200);
+      assert.equal(queue.list()[0].url, 'https://finder.video.qq.com/title-match.mp4');
+    } finally {
+      await server.stop();
+    }
+  });
+
   test('opens the folder for completed downloads', async () => {
     const queue = createDownloadQueue();
     const downloadsDir = path.join(os.tmpdir(), 'wx-helper-test-downloads');
