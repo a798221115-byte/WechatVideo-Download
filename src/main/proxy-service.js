@@ -102,6 +102,10 @@ export function proxyConfigFromSnapshot(snapshot, helperPort) {
   };
 }
 
+export function tlsInterceptTargets() {
+  return [{ hostname: 'channels.weixin.qq.com' }];
+}
+
 async function injectScript(req, res, appPort, appendRecord) {
   const contentType = headerValue(res.headers, 'content-type').toLowerCase();
   const text = await res.body.getText();
@@ -191,7 +195,7 @@ export function createProxyService({ settings, paths, appendRecord }) {
         https: {
           keyPath: certificate.keyPath,
           certPath: certificate.certPath,
-          tlsInterceptOnly: settings.allowedHosts.map((hostname) => ({ hostname }))
+          tlsInterceptOnly: tlsInterceptTargets()
         },
         http2: 'fallback'
       });

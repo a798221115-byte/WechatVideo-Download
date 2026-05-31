@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
-import { getRequestHost, getRequestUrl, isChannelsHostRequest, isChannelsPageRequest, proxyConfigFromSnapshot } from '../src/main/proxy-service.js';
+import { getRequestHost, getRequestUrl, isChannelsHostRequest, isChannelsPageRequest, proxyConfigFromSnapshot, tlsInterceptTargets } from '../src/main/proxy-service.js';
 
 describe('proxy request detection', () => {
   test('detects absolute channels page URLs', () => {
@@ -55,5 +55,14 @@ describe('proxy request detection', () => {
       { proxyUrl: 'http://127.0.0.1:10808', noProxy: ['127.0.0.1', 'localhost'] }
     );
     assert.equal(proxyConfigFromSnapshot({ proxyEnable: '1', proxyServer: '127.0.0.1:20251' }, 20251), undefined);
+  });
+
+  test('only intercepts the Channels page host for TLS injection', () => {
+    assert.deepEqual(
+      tlsInterceptTargets({
+        allowedHosts: ['channels.weixin.qq.com', '*.video.qq.com', '*.weixin.qq.com', '*.wx.qq.com']
+      }),
+      [{ hostname: 'channels.weixin.qq.com' }]
+    );
   });
 });
