@@ -215,6 +215,55 @@ describe('local server CORS', () => {
     }
   });
 
+  test('falls back to the most recent captured media for a single selected card', async () => {
+    const queue = createDownloadQueue();
+    const mediaStore = createMediaStore();
+    mediaStore.remember({
+      title: 'Recently played detail page title',
+      url: 'https://finder.video.qq.com/recently-played.mp4?token=abc'
+    });
+    const downloadsDir = await fs.mkdtemp(path.join(os.tmpdir(), 'wx-helper-recent-downloads-'));
+    const downloader = createDownloader({
+      queue,
+      paths: { downloadsDir },
+      appendRecord: async () => {},
+      concurrency: 1,
+      fetchImpl: async () => new globalThis.Response(Buffer.from('recent fallback bytes'), { status: 200 })
+    });
+    const server = createLocalServer({
+      settings: { appPort: 0, proxyPort: 20251 },
+      paths: {
+        downloadsDir,
+        recordsFile: path.join(os.tmpdir(), 'wx-helper-test-records.jsonl')
+      },
+      queue,
+      downloader,
+      proxyService: { status: () => ({ running: false, port: 20251 }) },
+      appendRecord: async () => {},
+      mediaStore
+    });
+
+    const port = await server.start(0);
+    try {
+      const response = await fetch(`http://127.0.0.1:${port}/__wx_helper/downloads/enqueue`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          sourceTab: '赞和收藏',
+          videos: [{ videoId: 'unmatched-list-card', title: 'Completely different title', author: 'Recent Fallback Tester' }]
+        })
+      });
+
+      assert.equal(response.status, 200);
+      const doneTask = await waitForTask(queue, (task) => task.status === 'done' || task.status === 'failed');
+      assert.equal(doneTask.status, 'done');
+      assert.equal(doneTask.url, 'https://finder.video.qq.com/recently-played.mp4?token=abc');
+      assert.equal(await fs.readFile(doneTask.localPath, 'utf8'), 'recent fallback bytes');
+    } finally {
+      await server.stop();
+    }
+  });
+
   test('opens the folder for completed downloads', async () => {
     const queue = createDownloadQueue();
     const downloadsDir = path.join(os.tmpdir(), 'wx-helper-test-downloads');

@@ -190,11 +190,13 @@ export function createLocalServer({ settings, paths, queue, downloader, proxySer
 
     if (request.method === 'POST' && url.pathname === '/__wx_helper/downloads/enqueue') {
       const body = await readJsonBody(request);
-      const items = toArray(body.videos).map((item) => mediaStore.enrich({
+      const requestedVideos = toArray(body.videos);
+      const allowRecentFallback = requestedVideos.length === 1;
+      const items = requestedVideos.map((item) => mediaStore.enrich({
         ...candidates.get(item.videoId),
         ...item,
         capturedAt: item.capturedAt || new Date().toISOString()
-      })).filter((item) => item.url && isAllowedUrl(item.url));
+      }, { allowRecentFallback })).filter((item) => item.url && isAllowedUrl(item.url));
       if (!items.length) {
         await appendRecord({ type: 'downloads_enqueue_rejected', reason: 'missing_media_url', sourceTab: body.sourceTab || '' });
         sendJson(response, 422, { ok: false, error: '未找到可下载的视频地址，请先点开播放一次或点击页面工具条的“扫描”。' });

@@ -44,7 +44,7 @@ export function createMediaStore({ maxAgeMs = 15 * 60 * 1000, maxEntries = 800 }
       prune();
       return true;
     },
-    enrich(item) {
+    enrich(item, options = {}) {
       if (item.url && isAllowedUrl(item.url)) return item;
       prune();
       const coverKey = normalizeUrlKey(item.coverUrl);
@@ -55,7 +55,11 @@ export function createMediaStore({ maxAgeMs = 15 * 60 * 1000, maxEntries = 800 }
         if (textMatches(item.title, entry.title)) return true;
         return false;
       });
-      return matched?.url ? { ...item, url: matched.url } : item;
+      if (matched?.url) return { ...item, url: matched.url };
+      if (options.allowRecentFallback && entries[0]?.url) {
+        return { ...item, url: entries[0].url };
+      }
+      return item;
     },
     list() {
       prune();
