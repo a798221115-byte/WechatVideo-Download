@@ -81,21 +81,33 @@ export function scanTextForMediaUrls(text) {
   const urls = [];
   const seen = new Set();
   function addCandidate(raw) {
-    const url = raw.replaceAll('\\/', '/').replace(/[),.;\]]+$/, '');
+    const url = raw.replaceAll('\\/', '/').replaceAll('&amp;', '&').replace(/[),.;\]}]+$/, '');
     if (!isLikelyMediaRequestUrl(url) || seen.has(url)) return;
     seen.add(url);
     urls.push(url);
   }
-  const matches = String(text || '').match(/https?:\\?\/\\?\/[^"'\s<>]+/g) || [];
-  for (const raw of matches) {
-    addCandidate(raw);
-  }
-  const encodedMatches = String(text || '').match(/https?%3A%2F%2F[^"'\s<>]+/gi) || [];
-  for (const raw of encodedMatches) {
-    try {
-      addCandidate(decodeURIComponent(raw));
-    } catch {
-      // Ignore malformed percent-encoded fragments.
+  const source = String(text || '');
+  const scanSources = new Set([
+    source,
+    source
+      .replaceAll('\\u002F', '/')
+      .replaceAll('\\u002f', '/')
+      .replaceAll('\\u003A', ':')
+      .replaceAll('\\u003a', ':')
+      .replaceAll('&amp;', '&')
+  ]);
+  for (const scanSource of scanSources) {
+    const matches = scanSource.match(/https?:\\?\/\\?\/[^"'\s<>]+/g) || [];
+    for (const raw of matches) {
+      addCandidate(raw);
+    }
+    const encodedMatches = scanSource.match(/https?%3A%2F%2F[^"'\s<>]+/gi) || [];
+    for (const raw of encodedMatches) {
+      try {
+        addCandidate(decodeURIComponent(raw));
+      } catch {
+        // Ignore malformed percent-encoded fragments.
+      }
     }
   }
   return urls;

@@ -105,18 +105,29 @@
 
     function scanTextForMedia(text) {
       const source = String(text || '');
-      const matches = source.match(/https?:\\?\/\\?\/[^"'\s<>]+/g) || [];
-      for (const raw of matches) {
-        const url = raw.replaceAll('\\/', '/').replace(/[),.;\]]+$/, '');
-        if (isAllowedMediaUrl(url)) rememberMediaEntry({ url });
-      }
-      const encodedMatches = source.match(/https?%3A%2F%2F[^"'\s<>]+/gi) || [];
-      for (const raw of encodedMatches) {
-        try {
-          const url = decodeURIComponent(raw).replace(/[),.;\]]+$/, '');
+      const scanSources = new Set([
+        source,
+        source
+          .replaceAll('\\u002F', '/')
+          .replaceAll('\\u002f', '/')
+          .replaceAll('\\u003A', ':')
+          .replaceAll('\\u003a', ':')
+          .replaceAll('&amp;', '&')
+      ]);
+      for (const scanSource of scanSources) {
+        const matches = scanSource.match(/https?:\\?\/\\?\/[^"'\s<>]+/g) || [];
+        for (const raw of matches) {
+          const url = raw.replaceAll('\\/', '/').replaceAll('&amp;', '&').replace(/[),.;\]}]+$/, '');
           if (isAllowedMediaUrl(url)) rememberMediaEntry({ url });
-        } catch {
-          // Ignore malformed percent-encoded fragments.
+        }
+        const encodedMatches = scanSource.match(/https?%3A%2F%2F[^"'\s<>]+/gi) || [];
+        for (const raw of encodedMatches) {
+          try {
+            const url = decodeURIComponent(raw).replaceAll('&amp;', '&').replace(/[),.;\]}]+$/, '');
+            if (isAllowedMediaUrl(url)) rememberMediaEntry({ url });
+          } catch {
+            // Ignore malformed percent-encoded fragments.
+          }
         }
       }
     }

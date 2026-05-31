@@ -96,6 +96,13 @@ describe('proxy request detection', () => {
     );
   });
 
+  test('extracts unicode-escaped and HTML-escaped media URLs from Channels response text', () => {
+    assert.deepEqual(
+      scanTextForMediaUrls('{"url":"https:\\u002F\\u002Fvweixinf.tc.qq.com\\u002Fvideo\\u002Funicode.mp4?token=abc&amp;idx=1"}'),
+      ['https://vweixinf.tc.qq.com/video/unicode.mp4?token=abc&idx=1']
+    );
+  });
+
   test('scans media URLs from non-GET Channels API responses without injecting UI', async () => {
     const remembered = [];
     const records = [];

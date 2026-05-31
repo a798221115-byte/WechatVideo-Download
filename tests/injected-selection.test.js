@@ -31,4 +31,11 @@ describe('injected page selection state', () => {
 
     assert.match(helperSource, /host\.endsWith\('\.tc\.qq\.com'\)/);
   });
+
+  test('page-side media scanner normalizes escaped URL forms', () => {
+    const helperSource = fs.readFileSync('src/injected/page-helper.js', 'utf8');
+
+    assert.match(helperSource, /replaceAll\('\\\\u002F', '\/'\)/);
+    assert.match(helperSource, /replaceAll\('&amp;', '&'\)/);
+  });
 });
