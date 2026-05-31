@@ -6,6 +6,7 @@ import { describe, test } from 'node:test';
 import { createLocalServer } from '../src/main/local-server.js';
 import { createDownloadQueue } from '../src/main/download-queue.js';
 import { createDownloader } from '../src/main/downloader.js';
+import { createMediaStore } from '../src/main/media-store.js';
 
 async function waitForTask(queue, predicate) {
   for (let attempt = 0; attempt < 80; attempt += 1) {
@@ -166,6 +167,12 @@ describe('local server CORS', () => {
 
   test('downloads an enqueued video to local disk after shared media enrichment', async () => {
     const queue = createDownloadQueue();
+    const mediaStore = createMediaStore();
+    mediaStore.remember({
+      videoId: 'downloaded-video',
+      title: 'Downloaded title',
+      url: 'https://finder.video.qq.com/downloaded-video.mp4'
+    });
     const downloadsDir = await fs.mkdtemp(path.join(os.tmpdir(), 'wx-helper-e2e-downloads-'));
     const downloader = createDownloader({
       queue,
@@ -183,23 +190,12 @@ describe('local server CORS', () => {
       queue,
       downloader,
       proxyService: { status: () => ({ running: false, port: 20251 }) },
-      appendRecord: async () => {}
+      appendRecord: async () => {},
+      mediaStore
     });
 
     const port = await server.start(0);
     try {
-      await fetch(`http://127.0.0.1:${port}/__wx_helper/media`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          entries: [{
-            videoId: 'downloaded-video',
-            title: 'Downloaded title',
-            url: 'https://finder.video.qq.com/downloaded-video.mp4'
-          }]
-        })
-      });
-
       const response = await fetch(`http://127.0.0.1:${port}/__wx_helper/downloads/enqueue`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },

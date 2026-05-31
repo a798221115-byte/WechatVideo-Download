@@ -103,7 +103,7 @@
     }
 
     function scanTextForMedia(text) {
-      const matches = String(text || '').match(/https?:\\?\/\\?\/[^"'\\\s<>]+/g) || [];
+      const matches = String(text || '').match(/https?:\\?\/\\?\/[^"'\s<>]+/g) || [];
       for (const raw of matches) {
         const url = raw.replaceAll('\\/', '/').replace(/[),.;\]]+$/, '');
         if (isAllowedMediaUrl(url)) rememberMediaEntry({ url });

@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ensureCertificate, installCertificateForCurrentUser } from './certificate-service.js';
 import { enableSystemProxy, readProxySnapshot, restoreSystemProxy } from './system-proxy.js';
+import { isAllowedUrl } from '../shared/security.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const injectedScriptPath = path.resolve(__dirname, '..', 'injected', 'page-helper.js');
@@ -76,6 +77,16 @@ function removeBlockingHeaders(headers) {
   return nextHeaders;
 }
 
+export function scanTextForMediaUrls(text) {
+  const urls = [];
+  const matches = String(text || '').match(/https?:\\?\/\\?\/[^"'\s<>]+/g) || [];
+  for (const raw of matches) {
+    const url = raw.replaceAll('\\/', '/').replace(/[),.;\]]+$/, '');
+    if (isLikelyMediaRequestUrl(url)) urls.push(url);
+  }
+  return urls;
+}
+
 function parseProxyServerValue(proxyServer) {
   const value = String(proxyServer || '').trim();
   if (!value) return '';
@@ -103,10 +114,49 @@ export function proxyConfigFromSnapshot(snapshot, helperPort) {
 }
 
 export function tlsInterceptTargets() {
-  return [{ hostname: 'channels.weixin.qq.com' }];
+  return [
+    { hostname: 'channels.weixin.qq.com' },
+    { hostname: 'finder.video.qq.com' },
+    { hostname: 'finder.video.weixin.qq.com' },
+    { hostname: '*.video.qq.com' }
+  ];
 }
 
-async function injectScript(req, res, appPort, appendRecord) {
+export function isLikelyMediaRequestUrl(value) {
+  try {
+    const parsed = new URL(value);
+    const host = parsed.hostname.toLowerCase();
+    const path = parsed.pathname.toLowerCase();
+    if (!isAllowedUrl(value)) return false;
+    if (!(host === 'finder.video.qq.com' || host === 'finder.video.weixin.qq.com' || host.endsWith('.video.qq.com'))) {
+      return false;
+    }
+    return path.includes('.mp4') || path.includes('/video/') || path.includes('videoplayback') || parsed.searchParams.size > 0;
+  } catch {
+    return false;
+  }
+}
+
+async function rememberProxyMediaRequest(req, mediaStore, appendRecord) {
+  const url = getRequestUrl(req)?.toString();
+  if (!url || !isLikelyMediaRequestUrl(url)) return;
+  const accepted = mediaStore?.remember?.({ url }) || false;
+  if (accepted) {
+    await appendRecord({ type: 'proxy_media_seen', url });
+  }
+}
+
+async function rememberMediaUrlsFromText(text, mediaStore, appendRecord) {
+  let accepted = 0;
+  for (const url of scanTextForMediaUrls(text)) {
+    if (mediaStore?.remember?.({ url })) accepted += 1;
+  }
+  if (accepted) {
+    await appendRecord({ type: 'proxy_media_urls_seen', count: accepted });
+  }
+}
+
+async function injectScript(req, res, appPort, appendRecord, mediaStore) {
   const contentType = headerValue(res.headers, 'content-type').toLowerCase();
   const text = await res.body.getText();
   const url = getRequestUrl(req)?.toString() || req.url;
@@ -123,6 +173,8 @@ async function injectScript(req, res, appPort, appendRecord) {
     await appendRecord({ ...diagnostic, result: 'skipped_empty_body' });
     return undefined;
   }
+
+  await rememberMediaUrlsFromText(text, mediaStore, appendRecord);
 
   if (text.includes('__WX_CHANNEL_LOCAL_HELPER__')) {
     await appendRecord({ ...diagnostic, result: 'skipped_already_injected' });
@@ -149,7 +201,7 @@ async function injectScript(req, res, appPort, appendRecord) {
   };
 }
 
-export function createProxyService({ settings, paths, appendRecord }) {
+export function createProxyService({ settings, paths, appendRecord, mediaStore }) {
   let mockServer = null;
   let proxySnapshot = null;
 
@@ -206,9 +258,12 @@ export function createProxyService({ settings, paths, appendRecord }) {
         await server.start(settings.proxyPort);
         await server.forAnyRequest().thenPassThrough({
           proxyConfig: upstreamProxy,
+          beforeRequest: async (req) => {
+            await rememberProxyMediaRequest(req, mediaStore, appendRecord);
+          },
           beforeResponse: async (res, req) => {
             if (req.method === 'GET' && isChannelsHostRequest(req)) {
-              return injectScript(req, res, settings.appPort, appendRecord);
+              return injectScript(req, res, settings.appPort, appendRecord, mediaStore);
             }
             return undefined;
           }

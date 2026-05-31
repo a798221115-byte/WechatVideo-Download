@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
-import { getRequestHost, getRequestUrl, isChannelsHostRequest, isChannelsPageRequest, proxyConfigFromSnapshot, tlsInterceptTargets } from '../src/main/proxy-service.js';
+import { getRequestHost, getRequestUrl, isChannelsHostRequest, isChannelsPageRequest, isLikelyMediaRequestUrl, proxyConfigFromSnapshot, scanTextForMediaUrls, tlsInterceptTargets } from '../src/main/proxy-service.js';
 
 describe('proxy request detection', () => {
   test('detects absolute channels page URLs', () => {
@@ -57,12 +57,29 @@ describe('proxy request detection', () => {
     assert.equal(proxyConfigFromSnapshot({ proxyEnable: '1', proxyServer: '127.0.0.1:20251' }, 20251), undefined);
   });
 
-  test('only intercepts the Channels page host for TLS injection', () => {
+  test('intercepts Channels pages and video media hosts for URL capture', () => {
     assert.deepEqual(
-      tlsInterceptTargets({
-        allowedHosts: ['channels.weixin.qq.com', '*.video.qq.com', '*.weixin.qq.com', '*.wx.qq.com']
-      }),
-      [{ hostname: 'channels.weixin.qq.com' }]
+      tlsInterceptTargets(),
+      [
+        { hostname: 'channels.weixin.qq.com' },
+        { hostname: 'finder.video.qq.com' },
+        { hostname: 'finder.video.weixin.qq.com' },
+        { hostname: '*.video.qq.com' }
+      ]
+    );
+  });
+
+  test('detects likely media request URLs without matching normal pages', () => {
+    assert.equal(isLikelyMediaRequestUrl('https://finder.video.qq.com/video.mp4?token=abc'), true);
+    assert.equal(isLikelyMediaRequestUrl('https://v6-finder.video.qq.com/video/foo?token=abc'), true);
+    assert.equal(isLikelyMediaRequestUrl('https://channels.weixin.qq.com/web/pages/feed'), false);
+    assert.equal(isLikelyMediaRequestUrl('https://example.com/video.mp4'), false);
+  });
+
+  test('extracts escaped media URLs from Channels response text', () => {
+    assert.deepEqual(
+      scanTextForMediaUrls('{"url":"https:\\/\\/finder.video.qq.com\\/video.mp4?token=abc","page":"https:\\/\\/channels.weixin.qq.com\\/web\\/pages\\/feed"}'),
+      ['https://finder.video.qq.com/video.mp4?token=abc']
     );
   });
 });

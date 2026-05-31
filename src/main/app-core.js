@@ -4,6 +4,7 @@ import { loadSettings, saveSettings } from './settings.js';
 import { createDownloadQueue } from './download-queue.js';
 import { createDownloader } from './downloader.js';
 import { createLocalServer } from './local-server.js';
+import { createMediaStore } from './media-store.js';
 import { createProxyService } from './proxy-service.js';
 
 export async function createApplication(root = process.cwd(), options = {}) {
@@ -12,6 +13,7 @@ export async function createApplication(root = process.cwd(), options = {}) {
   const settings = await loadSettings(paths.settingsFile);
   await saveSettings(paths.settingsFile, settings);
   const queue = createDownloadQueue();
+  const mediaStore = createMediaStore();
   const appendRecord = (event) => appendRecordToFile(paths.recordsFile, event);
   const downloader = createDownloader({
     queue,
@@ -19,7 +21,7 @@ export async function createApplication(root = process.cwd(), options = {}) {
     appendRecord,
     concurrency: settings.downloadConcurrency
   });
-  const proxyService = createProxyService({ settings, paths, appendRecord });
+  const proxyService = createProxyService({ settings, paths, appendRecord, mediaStore });
   const localServer = createLocalServer({
     settings,
     paths,
@@ -27,7 +29,8 @@ export async function createApplication(root = process.cwd(), options = {}) {
     downloader,
     proxyService,
     appendRecord,
-    openPath: options.openPath
+    openPath: options.openPath,
+    mediaStore
   });
 
   return {
