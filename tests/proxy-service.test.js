@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
-import { getRequestHost, getRequestUrl, isChannelsHostRequest, isChannelsPageRequest, isLikelyMediaRequestUrl, proxyConfigFromSnapshot, scanTextForMediaUrls, tlsInterceptTargets } from '../src/main/proxy-service.js';
+import { getRequestHost, getRequestUrl, inspectChannelsResponse, isChannelsHostRequest, isChannelsPageRequest, isLikelyMediaRequestUrl, proxyConfigFromSnapshot, scanTextForMediaUrls, tlsInterceptTargets } from '../src/main/proxy-service.js';
 
 describe('proxy request detection', () => {
   test('detects absolute channels page URLs', () => {
@@ -87,5 +87,35 @@ describe('proxy request detection', () => {
       scanTextForMediaUrls('{"url":"https:\\/\\/finder.video.qq.com\\/video.mp4?token=abc","page":"https:\\/\\/channels.weixin.qq.com\\/web\\/pages\\/feed"}'),
       ['https://finder.video.qq.com/video.mp4?token=abc']
     );
+  });
+
+  test('scans media URLs from non-GET Channels API responses without injecting UI', async () => {
+    const remembered = [];
+    const records = [];
+    const result = await inspectChannelsResponse(
+      {
+        method: 'POST',
+        protocol: 'https',
+        url: 'https://channels.weixin.qq.com/web/api/feed',
+        path: '/web/api/feed',
+        headers: {},
+        destination: { hostname: 'channels.weixin.qq.com' }
+      },
+      {
+        statusCode: 200,
+        headers: { 'content-type': 'application/json' },
+        body: {
+          getText: async () => '{"url":"https:\\/\\/vweixinf.tc.qq.com\\/video\\/api-video.mp4?token=abc"}'
+        }
+      },
+      20250,
+      async (event) => records.push(event),
+      { remember: (entry) => remembered.push(entry) }
+    );
+
+    assert.equal(result, undefined);
+    assert.deepEqual(remembered, [{ url: 'https://vweixinf.tc.qq.com/video/api-video.mp4?token=abc' }]);
+    assert.equal(records.some((event) => event.type === 'proxy_media_urls_seen' && event.count === 1), true);
+    assert.equal(records.some((event) => event.result === 'skipped_non_get_after_scan'), true);
   });
 });

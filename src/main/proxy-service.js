@@ -166,7 +166,7 @@ async function rememberMediaUrlsFromText(text, mediaStore, appendRecord) {
   }
 }
 
-async function injectScript(req, res, appPort, appendRecord, mediaStore) {
+export async function inspectChannelsResponse(req, res, appPort, appendRecord, mediaStore) {
   const contentType = headerValue(res.headers, 'content-type').toLowerCase();
   const text = await res.body.getText();
   const url = getRequestUrl(req)?.toString() || req.url;
@@ -185,6 +185,11 @@ async function injectScript(req, res, appPort, appendRecord, mediaStore) {
   }
 
   await rememberMediaUrlsFromText(text, mediaStore, appendRecord);
+
+  if (req.method !== 'GET') {
+    await appendRecord({ ...diagnostic, result: 'skipped_non_get_after_scan' });
+    return undefined;
+  }
 
   if (text.includes('__WX_CHANNEL_LOCAL_HELPER__')) {
     await appendRecord({ ...diagnostic, result: 'skipped_already_injected' });
@@ -272,8 +277,8 @@ export function createProxyService({ settings, paths, appendRecord, mediaStore }
             await rememberProxyMediaRequest(req, mediaStore, appendRecord);
           },
           beforeResponse: async (res, req) => {
-            if (req.method === 'GET' && isChannelsHostRequest(req)) {
-              return injectScript(req, res, settings.appPort, appendRecord, mediaStore);
+            if (isChannelsHostRequest(req)) {
+              return inspectChannelsResponse(req, res, settings.appPort, appendRecord, mediaStore);
             }
             return undefined;
           }
