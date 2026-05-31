@@ -43,7 +43,8 @@
       .wxh-toolbar-drag { cursor: grab; user-select: none; color: #9f9f9f; padding: 0 2px; }
       .wxh-toolbar-drag:active { cursor: grabbing; }
       .wxh-status { min-width: 58px; font-weight: 700; white-space: nowrap; }
-      .wxh-message { min-width: 0; color: #bff4d5; overflow: visible; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.45; }
+      .wxh-message { grid-column: 1 / -1; min-width: 0; color: #bff4d5; overflow: visible; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.45; }
+      .wxh-message:empty { display: none; }
       .wxh-controls { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
       .wxh-toggle { min-width: 52px; padding: 0 8px !important; }
     `;
@@ -563,6 +564,12 @@
 
     function enrichCandidate(candidate) {
       if (candidate.url && isAllowedMediaUrl(candidate.url)) return candidate;
+      const pending = currentPendingCandidate();
+      const recentlyOpenedMedia = state.mediaEntries.find((entry) => {
+        if (!pending.videoId || pending.videoId !== candidate.videoId) return false;
+        return Number(entry.capturedAt || 0) >= Number(pending.time || 0) - 1000;
+      });
+      if (recentlyOpenedMedia?.url) return { ...candidate, url: recentlyOpenedMedia.url };
       const coverKey = normalizeUrlKey(candidate.coverUrl);
       const title = String(candidate.title || '').trim();
       const matched = state.mediaEntries.find((entry) => {
@@ -575,9 +582,20 @@
       return media?.url ? { ...candidate, url: media.url } : candidate;
     }
 
+    function shouldAllowRecentFallback(candidate, selectedCount) {
+      if (selectedCount !== 1) return false;
+      const pending = currentPendingCandidate();
+      return Boolean(pending.videoId && pending.videoId === candidate.videoId);
+    }
+
     async function enqueueSelected() {
       scanRuntimeForMedia();
-      const videos = Array.from(state.selected.values()).map((candidate) => enrichCandidate(candidate));
+      const selectedCandidates = Array.from(state.selected.values());
+      const videos = selectedCandidates.map((candidate) => {
+        const enriched = enrichCandidate(candidate);
+        if (!shouldAllowRecentFallback(enriched, selectedCandidates.length)) return enriched;
+        return { ...enriched, allowRecentFallback: true };
+      });
       if (!videos.length) {
         setMessage('请先选择视频');
         return;

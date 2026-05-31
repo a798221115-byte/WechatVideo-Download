@@ -231,7 +231,45 @@ describe('local server CORS', () => {
     }
   });
 
-  test('falls back to the most recent captured media for a single selected card', async () => {
+  test('rejects recent captured media fallback unless the selected card opts in', async () => {
+    const queue = createDownloadQueue();
+    const mediaStore = createMediaStore();
+    mediaStore.remember({
+      title: 'Recently played detail page title',
+      url: 'https://finder.video.qq.com/recently-played.mp4?token=abc'
+    });
+    const server = createLocalServer({
+      settings: { appPort: 0, proxyPort: 20251 },
+      paths: {
+        downloadsDir: path.join(os.tmpdir(), 'wx-helper-test-downloads'),
+        recordsFile: path.join(os.tmpdir(), 'wx-helper-test-records.jsonl')
+      },
+      queue,
+      downloader: { start() {}, nudge() {} },
+      proxyService: { status: () => ({ running: false, port: 20251 }) },
+      appendRecord: async () => {},
+      mediaStore
+    });
+
+    const port = await server.start(0);
+    try {
+      const response = await fetch(`http://127.0.0.1:${port}/__wx_helper/downloads/enqueue`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          sourceTab: '赞和收藏',
+          videos: [{ videoId: 'unmatched-list-card', title: 'Completely different title', author: 'Recent Fallback Tester' }]
+        })
+      });
+
+      assert.equal(response.status, 422);
+      assert.equal(queue.list().length, 0);
+    } finally {
+      await server.stop();
+    }
+  });
+
+  test('falls back to the most recent captured media only when the selected card opts in', async () => {
     const queue = createDownloadQueue();
     const mediaStore = createMediaStore();
     mediaStore.remember({
@@ -266,7 +304,12 @@ describe('local server CORS', () => {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           sourceTab: '赞和收藏',
-          videos: [{ videoId: 'unmatched-list-card', title: 'Completely different title', author: 'Recent Fallback Tester' }]
+          videos: [{
+            videoId: 'unmatched-list-card',
+            title: 'Completely different title',
+            author: 'Recent Fallback Tester',
+            allowRecentFallback: true
+          }]
         })
       });
 

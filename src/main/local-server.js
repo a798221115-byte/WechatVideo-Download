@@ -72,7 +72,8 @@ function missingMediaMessage(mediaStore) {
   return [
     '没有匹配到这个卡片的视频地址。',
     `当前本机已捕获 ${summary.count || 0} 个视频地址。${latestText}`,
-    '请先打开这个视频并等待播放 2 秒，再回到赞和收藏页面点击“扫描”或“加入下载”。',
+    '原因：为了避免下载错视频，助手只会在“卡片信息”和“真实播放地址”能对应上时加入下载。',
+    '请先点击这张卡片打开视频，等它实际播放 2 秒，再回到赞和收藏页面点击“扫描”或“加入下载”。',
     '如果捕获数量一直是 0，通常是微信的视频请求没有经过本助手代理；常见原因是 VPN/TUN 接管网络、视频号页面没有重新打开，或当前视频请求域名还没有被识别。'
   ].join('\n');
 }
@@ -240,12 +241,11 @@ export function createLocalServer({ settings, paths, queue, downloader, proxySer
     if (request.method === 'POST' && url.pathname === '/__wx_helper/downloads/enqueue') {
       const body = await readJsonBody(request);
       const requestedVideos = toArray(body.videos);
-      const allowRecentFallback = requestedVideos.length === 1;
       const items = requestedVideos.map((item) => mediaStore.enrich({
         ...candidates.get(item.videoId),
         ...item,
         capturedAt: item.capturedAt || new Date().toISOString()
-      }, { allowRecentFallback })).filter((item) => item.url && isAllowedUrl(item.url));
+      }, { allowRecentFallback: Boolean(item.allowRecentFallback) })).filter((item) => item.url && isAllowedUrl(item.url));
       if (!items.length) {
         await appendRecord({ type: 'downloads_enqueue_rejected', reason: 'missing_media_url', sourceTab: body.sourceTab || '' });
         sendJson(response, 422, { ok: false, error: missingMediaMessage(mediaStore) });

@@ -26,6 +26,13 @@ describe('injected page selection state', () => {
     assert.doesNotMatch(helperSource, /\.wxh-message[\s\S]*text-overflow: ellipsis/);
   });
 
+  test('page only requests recent media fallback for the card that was just opened', () => {
+    const helperSource = fs.readFileSync('src/injected/page-helper.js', 'utf8');
+
+    assert.match(helperSource, /allowRecentFallback/);
+    assert.match(helperSource, /pending\.videoId === candidate\.videoId/);
+  });
+
   test('page-side media scanner accepts Tencent tc CDN URLs', () => {
     const helperSource = fs.readFileSync('src/injected/page-helper.js', 'utf8');
 
