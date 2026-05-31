@@ -118,7 +118,9 @@ export function tlsInterceptTargets() {
     { hostname: 'channels.weixin.qq.com' },
     { hostname: 'finder.video.qq.com' },
     { hostname: 'finder.video.weixin.qq.com' },
-    { hostname: '*.video.qq.com' }
+    { hostname: '*.video.qq.com' },
+    { hostname: '*.weixin.qq.com' },
+    { hostname: '*.wx.qq.com' }
   ];
 }
 
@@ -128,7 +130,13 @@ export function isLikelyMediaRequestUrl(value) {
     const host = parsed.hostname.toLowerCase();
     const path = parsed.pathname.toLowerCase();
     if (!isAllowedUrl(value)) return false;
-    if (!(host === 'finder.video.qq.com' || host === 'finder.video.weixin.qq.com' || host.endsWith('.video.qq.com'))) {
+    if (!(
+      host === 'finder.video.qq.com' ||
+      host === 'finder.video.weixin.qq.com' ||
+      host.endsWith('.video.qq.com') ||
+      host.endsWith('.weixin.qq.com') ||
+      host.endsWith('.wx.qq.com')
+    )) {
       return false;
     }
     return path.includes('.mp4') || path.includes('/video/') || path.includes('videoplayback') || parsed.searchParams.size > 0;
